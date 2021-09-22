@@ -37,7 +37,7 @@ def main(args):
     if cfg.rec == "synthetic":
         train_set = SyntheticDataset(local_rank=local_rank)
     else:
-        train_set = MXFaceDataset(root_dir=cfg.rec, local_rank=local_rank)
+        train_set = MXFaceDataset(root_dir=cfg.rec, local_rank=local_rank, max_num_images=cfg.num_images)
 
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_set, shuffle=True)
     train_loader = DataLoaderX(
@@ -95,8 +95,8 @@ def main(args):
         logging.info(": " + key + " " * num_space + str(value))
 
     val_target = cfg.val_targets
-    callback_verification = CallBackVerification(2000, rank, val_target, cfg.rec)
-    callback_logging = CallBackLogging(50, rank, cfg.total_step, cfg.batch_size, world_size, None)
+    callback_verification = CallBackVerification(cfg.ver_freq, rank, val_target, cfg.rec)
+    callback_logging = CallBackLogging(cfg.log_freq, rank, cfg.total_step, cfg.batch_size, world_size, None)
     callback_checkpoint = CallBackModelCheckpoint(rank, cfg.output)
 
     loss = AverageMeter()
@@ -129,6 +129,7 @@ def main(args):
             callback_verification(global_step, backbone)
             scheduler_backbone.step()
             scheduler_pfc.step()
+        print("[Epoch {}/{}] finished".format(epoch,cfg.num_epoch))
         callback_checkpoint(global_step, backbone, module_partial_fc)
     dist.destroy_process_group()
 

@@ -69,7 +69,7 @@ class DataLoaderX(DataLoader):
 
 
 class MXFaceDataset(Dataset):
-    def __init__(self, root_dir, local_rank):
+    def __init__(self, root_dir, local_rank, max_num_images=None):
         super(MXFaceDataset, self).__init__()
         self.transform = transforms.Compose(
             [transforms.ToPILImage(),
@@ -86,7 +86,11 @@ class MXFaceDataset(Dataset):
         header, _ = mx.recordio.unpack(s)
         if header.flag > 0:
             self.header0 = (int(header.label[0]), int(header.label[1]))
-            self.imgidx = np.array(range(1, int(header.label[0])))
+            if max_num_images==None:
+                self.imgidx = np.array(range(1, int(header.label[0])))
+            else:
+                num_images = min(max_num_images,int(header.label[0]))
+                self.imgidx = np.array(range(1, num_images))
         else:
             self.imgidx = np.array(list(self.imgrec.keys))
 

@@ -17,6 +17,7 @@ import torch
 from skimage import transform as trans
 from backbones import get_model
 from sklearn.metrics import roc_curve, auc
+from tqdm import tqdm
 
 from menpo.visualize.viewmatplotlib import sample_colours_from_colourmap
 from prettytable import PrettyTable
@@ -164,7 +165,10 @@ def get_image_feature(img_path, files_list, model_path, epoch, gpu_id):
 
     batch_data = np.empty((2 * batch_size, 3, 112, 112))
     embedding = Embedding(model_path, data_shape, batch_size)
-    for img_index, each_line in enumerate(files[:len(files) - rare_size]):
+    enum_files = files[:len(files) - rare_size]
+    enum_length = len(enum_files)
+    print("Total length:",enum_length)
+    for img_index, each_line in tqdm(enumerate(enum_files),total=enum_length):
         name_lmk_score = each_line.strip().split(' ')
         img_name = os.path.join(img_path, name_lmk_score[0])
         img = cv2.imread(img_name)
@@ -176,7 +180,7 @@ def get_image_feature(img_path, files_list, model_path, epoch, gpu_id):
         batch_data[2 * (img_index - batch * batch_size)][:] = input_blob[0]
         batch_data[2 * (img_index - batch * batch_size) + 1][:] = input_blob[1]
         if (img_index + 1) % batch_size == 0:
-            print('batch', batch)
+            # print('batch', batch)
             img_feats[batch * batch_size:batch * batch_size +
                                          batch_size][:] = embedding.forward_db(batch_data)
             batch += 1
@@ -455,7 +459,7 @@ for method in methods:
     fpr, tpr, _ = roc_curve(label, scores[method])
     roc_auc = auc(fpr, tpr)
     fpr = np.flipud(fpr)
-    tpr = np.flipud(tpr)  # select largest tpr at same fpr
+    tpr = 1-np.flipud(tpr)  # select largest tpr at same fpr
     plt.plot(fpr,
              tpr,
              color=colours[method],
@@ -470,14 +474,14 @@ for method in methods:
         tpr_fpr_row.append('%.2f' % (tpr[min_index] * 100))
     tpr_fpr_table.add_row(tpr_fpr_row)
 plt.xlim([10 ** -6, 0.1])
-plt.ylim([0.3, 1.0])
+plt.ylim([0.0, 0.3])
 plt.grid(linestyle='--', linewidth=1)
 plt.xticks(x_labels)
-plt.yticks(np.linspace(0.3, 1.0, 8, endpoint=True))
+plt.yticks(np.linspace(0.0, 0.3, 10, endpoint=True))
 plt.xscale('log')
-plt.xlabel('False Positive Rate')
-plt.ylabel('True Positive Rate')
-plt.title('ROC on IJB')
+plt.xlabel('False match rate (FMR)')
+plt.ylabel('False non-match rate (FNMR)')
+# plt.title('ROC on IJB')
 plt.legend(loc="lower right")
-fig.savefig(os.path.join(save_path, '%s.pdf' % target.lower()))
+fig.savefig(os.path.join(save_path, '%s.png' % target.lower()))
 print(tpr_fpr_table)
